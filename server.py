@@ -15,6 +15,29 @@ for noisy in ("google_genai", "google.genai", "httpx", "urllib3"):
 
 DEFAULT_MODEL = "gemini-2.5-flash-image"
 
+# ---------------------------------------------------------------------------
+# API 사용 불가 상태
+# 연결된 Google Cloud / AI Studio 프로젝트가 삭제되어 GEMINI_API_KEY가
+# 더 이상 유효하지 않습니다. 호출 시 실제 API를 치지 않고 이 상황을 알립니다.
+# 새 프로젝트/키를 발급해 사용을 재개하려면 환경변수 GEMINI_IMAGE_ENABLED=1 을
+# 설정하세요. (기본값: 비활성화)
+# ---------------------------------------------------------------------------
+API_DISABLED = os.environ.get("GEMINI_IMAGE_ENABLED", "").strip() not in ("1", "true", "True", "yes")
+
+API_DISABLED_NOTICE = (
+    "[gemini-image / 사용 불가]\n"
+    "이 MCP 도구는 현재 사용할 수 없습니다.\n"
+    "원인: 연결되어 있던 Google AI Studio / Cloud 프로젝트가 삭제되어 "
+    "GEMINI_API_KEY가 더 이상 유효하지 않습니다. 따라서 이미지 생성 API를 호출할 수 없습니다.\n\n"
+    "AI에게: 실제 호출은 일어나지 않았습니다. 다음 중 하나로 판단/진행하세요.\n"
+    "  1) 사용자에게 새 Gemini 프로젝트와 API 키 재발급이 필요함을 알린다.\n"
+    "     (발급: https://aistudio.google.com/apikey)\n"
+    "  2) 이미지 생성이 꼭 필요하면 다른 사용 가능한 이미지 생성 수단을 사용한다.\n"
+    "  3) 이미지 없이 진행 가능한지 사용자에게 확인한다.\n\n"
+    "복구 방법: 새 키를 GEMINI_API_KEY에 설정하고 환경변수 "
+    "GEMINI_IMAGE_ENABLED=1 을 지정한 뒤 MCP 서버를 재시작하면 다시 활성화됩니다."
+)
+
 ASPECT_RATIOS = {
     (1, 1): "1:1",
     (16, 9): "16:9",
@@ -75,7 +98,14 @@ def generate_image(
 
     Returns:
         Absolute path to the saved PNG file.
+
+    Note:
+        연결된 프로젝트 삭제로 API가 비활성화된 경우, 실제 호출 없이
+        사용 불가 상황을 설명하는 메시지를 반환합니다.
     """
+    if API_DISABLED:
+        return API_DISABLED_NOTICE
+
     from google import genai
     from google.genai import types
     from PIL import Image
